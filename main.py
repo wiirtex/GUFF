@@ -1,4 +1,5 @@
 from os import walk
+import argparse
 
 
 class GoFunction:
@@ -59,7 +60,6 @@ def read_functions(files: list) -> list:
                 function_name = package + "." + function_name
                 functions.append(GoFunction(function_name, file, i + 1, package, class_name))
         f.close()
-    print([str(x) for x in functions])
     return functions
 
 
@@ -73,7 +73,7 @@ def count_functions(files: list, functions: list) -> dict:
         for i in range(len(lines)):
             for function in functions:
                 # MID TODO: work with function with identical names but different packages
-                #       Now program does not divide functions from different packages
+                #       Now program does not distinguish between different functions from different packages
                 if function.name in lines[i]:
                     count[function] += 1
         f.close()
@@ -86,11 +86,21 @@ def print_results(path_: str, counts_: dict):
             print(f"Function {f.name} defined in {f.file[len(path_):]}:{f.row} is not used")
 
 
+parser = argparse.ArgumentParser(description='A tutorial of GUFF')
+parser.add_argument("--path", help="Path to the directory to search unused functions", type=str, required=True)
+args = parser.parse_args()
+
 # MID TODO: work with functions with equal names, but different class.
 #       Now program does not know method of which class is called (this is really bad)
 # MIN TODO: work with different modules.
 #       Now if function called from one of modules, it is called in all another (this is not good)
-path = "D:\\Projects\\go\\mts\\bodyshop"
+path = args.path
+try:
+    next(walk(path))
+except:
+    print("No such directory or can not get access")
+    raise SystemExit(1)
+
 go_files = read_files(path)
 go_functions = read_functions(go_files)
 counts = count_functions(go_files, go_functions)
