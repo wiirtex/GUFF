@@ -1,5 +1,6 @@
 from os import walk
 import argparse
+import re
 
 
 class GoFunction:
@@ -29,21 +30,16 @@ def getPackage(line: str) -> str:
     return ""
 
 
-def isFunction(line: str) -> bool:
-    if "func " in line and not line.rstrip().startswith("//"):
-        return True
-    return False
+def isFunction(line: str):
+    return re.search(r"^\s*func", line)
 
 
-def getFunctionFromLine(line: str) -> (str, str):
-    words = line.split(" ")
-    if words[1].startswith("("):  # then this function is a class method
-        func_name = words[3].split("(")[0].strip("(*)")
-        class_name = words[2].strip('(*)')
-    else:
-        func_name = words[1].split("(")[0]
-        class_name = ""
-    return func_name, class_name
+def getFunctionFromLine(line: str) -> list:
+    res1 = re.findall(r"^func \(\w+\s+\*\s*(\w*)\s*\)\s*(\w+).*\s*{$", line)
+    res2 = re.findall(r"^()func ([^(]\w*).*\s*{$", line)
+    if len(res2) == 0:
+        return res1
+    return res2
 
 
 def read_functions(files: list) -> list:
@@ -56,8 +52,8 @@ def read_functions(files: list) -> list:
             if getPackage(lines[i]) != "":
                 package = getPackage(lines[i])
             if isFunction(lines[i]):
-                function_name, class_name = getFunctionFromLine(lines[i])
-                function_name = package + "." + function_name
+                info = getFunctionFromLine(lines[i])
+                class_name, function_name = info[0][0], info[0][1]
                 functions.append(GoFunction(function_name, file, i + 1, package, class_name))
         f.close()
     return functions
@@ -74,7 +70,7 @@ def count_functions(files: list, functions: list) -> dict:
             for function in functions:
                 # MID TODO: work with function with identical names but different packages
                 #       Now program does not distinguish between different functions from different packages
-                if function.name in lines[i]:
+                if re.search(f"{function.name}", lines[i]):
                     count[function] += 1
         f.close()
     return count
@@ -82,7 +78,7 @@ def count_functions(files: list, functions: list) -> dict:
 
 def print_results(path_: str, counts_: dict):
     for f in counts_:
-        if counts_[f] == 0:
+        if counts_[f] < 1:
             print(f"Function {f.name} defined in {f.file[len(path_):]}:{f.row} is not used")
 
 
@@ -97,7 +93,7 @@ args = parser.parse_args()
 path = args.path
 try:
     next(walk(path))
-except:
+except Exception:
     print("No such directory or can not get access")
     raise SystemExit(1)
 
